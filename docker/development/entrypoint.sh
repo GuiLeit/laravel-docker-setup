@@ -1,57 +1,54 @@
 #!/bin/bash
+#!/bin/sh
+set -e
 
-main() {
-    if [ "$IS_WORKER" = "true" ]; then
-        exec "$@"
-    else
-        prepare_file_permissions
-        prepare_storage
-        wait_for_db
-        run_migrations
-        optimize_app
-        run_server "$@"
-    fi
-}
+# Initialize storage directory if empty
+# -----------------------------------------------------------
+# If the storage directory is empty, copy the initial contents
+# and set the correct permissions.
+# -----------------------------------------------------------
+if [ ! "$(ls -A /var/www/storage)" ]; then
+  echo "Initializing storage directory..."
+  cp -R /var/www/storage-init/. /var/www/storage
+fi
 
-prepare_file_permissions() {
-    chmod a+x ./artisan
-}
+# Remove storage-init directory
+rm -rf /var/www/storage-init
 
-prepare_storage() {
-    # Create required directories for Laravel
-    mkdir -p /var/www/storage/framework/cache/data
-    mkdir -p /var/www/storage/framework/sessions
-    mkdir -p /var/www/storage/framework/views
-    mkdir -p /var/www/storage/logs
-    mkdir -p /var/www/bootstrap/cache
+# Remove Vite hot file to ensure production uses built assets
+# -----------------------------------------------------------
+# The 'hot' file tells Laravel to use Vite dev server.
+# We must remove it in production to use pre-built assets.
+# -----------------------------------------------------------
+rm -f /var/www/public/hot
 
-    # Set permissions so both host user and www-data can write
-    # Using 777 for development only (volumes are mounted from host)
-    chmod -R 777 /var/www/storage /var/www/bootstrap/cache 2>/dev/null || true
+# Fix permissions for Laravel directories
+echo "Setting correct permissions..."
+# Ensure directories are writable by the FPM process
+chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
+chmod -R 775 /var/www/storage /var/www/bootstrap/cache || true
 
-    # Ensure the symlink exists
-    php artisan storage:link 2>/dev/null || true
-}
+if grep -qE '^DB_CONNECTION=sqlite' /var/www/.env 2>/dev/null; then
+  touch /var/www/database/database.sqlite
+  chown www-data:www-data /var/www/database/database.sqlite
+fi
 
-wait_for_db() {
-    echo "Waiting for DB to be ready"
-    until ./artisan migrate:status 2>&1 | grep -q -E "(Migration table not found|Migration name)"; do
-        sleep 1
-    done
-}
+php artisan key:generate --force
 
-run_migrations() {
-    ./artisan migrate --force
-}
+# Run Laravel migrations
+# -----------------------------------------------------------
+# Ensure the database schema is up to date.
+# -----------------------------------------------------------
+php artisan migrate --force
 
-optimize_app() {
-    ./artisan optimize:clear
-    # Skip optimize in development for hot reload
-    # ./artisan optimize
-}
+# Clear and cache configurations
+# -----------------------------------------------------------
+# Improves performance by caching config and routes.
+# -----------------------------------------------------------
+php artisan config:cache
+php artisan route:cache
 
-run_server() {
-    exec /usr/local/bin/docker-php-entrypoint "$@"
-}
+php artisan storage:link
 
-main "$@"
+# Run the default command
+exec "$@"

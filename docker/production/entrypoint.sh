@@ -27,6 +27,11 @@ echo "Setting correct permissions..."
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache || true
 
+if grep -qE '^DB_CONNECTION=sqlite' /var/www/.env 2>/dev/null; then
+  touch /var/www/database/database.sqlite
+  chown www-data:www-data /var/www/database/database.sqlite
+fi
+
 php artisan key:generate --force
 
 # Run Laravel migrations

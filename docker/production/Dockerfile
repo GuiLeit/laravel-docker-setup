@@ -34,12 +34,8 @@ RUN npm ci
 # Copy Laravel application source code
 COPY . /var/www
 
-# Copy build-time environment file and set up minimal Laravel environment
-# COPY .env /var/www/.env
-
-# Create minimal SQLite database and complete Laravel setup
-RUN touch /tmp/database.sqlite && \
-    composer dump-autoload --optimize --no-dev
+# Complete Laravel setup
+RUN composer dump-autoload --optimize --no-dev
 
 # Generate Wayfinder types
 RUN php artisan wayfinder:generate --with-form || echo "Wayfinder generation skipped - continuing anyway"

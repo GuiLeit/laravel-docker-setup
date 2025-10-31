@@ -1,11 +1,9 @@
-# docker/development/workspace/Dockerfile
-# Use the official PHP CLI image as the base
-FROM php:8.3-cli
+# Stage 1: Build assets with Node.js (with PHP for Wayfinder generation)
+FROM php:8.2-fpm AS builder
 
-# Set environment variables for user and group ID
-ARG UID=1000
-ARG GID=1000
-ARG NODE_VERSION=22.0.0
+# Install Node.js (LTS version)
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y nodejs
 
 # Install system dependencies and build libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,9 +27,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bcmath \
     soap \
     && pecl install redis xdebug \
-    && docker-php-ext-enable redis xdebug\
-    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && docker-php-ext-enable redis xdebug \
     && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Use ARG to define environment variables passed from the Docker build command or Docker Compose.
 ARG XDEBUG_ENABLED
@@ -52,41 +52,19 @@ RUN if [ "${XDEBUG_ENABLED}" = "true" ]; then \
     echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini ; \
 fi
 
-# If the group already exists, use it; otherwise, create the 'www' group
-RUN if getent group ${GID}; then \
-      useradd -m -u ${UID} -g ${GID} -s /bin/bash www; \
-    else \
-      groupadd -g ${GID} www && \
-      useradd -m -u ${UID} -g www -s /bin/bash www; \
-    fi && \
-    usermod -aG sudo www && \
-    echo 'www ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
-    mkdir -p /var/www && \
-    chown -R www:www /var/www
-
-# Switch back to root to install Node.js
-USER root
-
-# Install Node.js directly using NodeSource repository
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g npm@latest && \
-    chown -R www:www /home/www
-
-# Switch to the non-root user
-USER www
-
-# Copy startup script
-COPY docker/development/start.sh /home/www/start.sh
-USER root
-RUN chown www:www /home/www/start.sh && chmod +x /home/www/start.sh
-USER www
-
-# Set the working directory
+# Set working directory
 WORKDIR /var/www
 
-# Override the entrypoint to avoid the default php entrypoint
-ENTRYPOINT []
+# Copy composer files first for better caching
+COPY composer.json composer.lock ./
 
-# Default command to start services
-CMD ["/home/www/start.sh"]
+# Install PHP dependencies (only those needed for Wayfinder)
+RUN composer install --no-dev --no-scripts --no-autoloader --optimize-autoloader
+
+# Copy package files first for better Docker layer caching
+COPY package.json package-lock.json* ./
+
+# Install Node.js dependencies with clean install for production builds
+RUN npm ci
+
+CMD ["npm", "run", "dev"]
