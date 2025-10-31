@@ -41,13 +41,6 @@ php artisan key:generate --force
 # -----------------------------------------------------------
 php artisan migrate --force
 
-# Clear and cache configurations
-# -----------------------------------------------------------
-# Improves performance by caching config and routes.
-# -----------------------------------------------------------
-php artisan config:cache
-php artisan route:cache
-
 php artisan storage:link
 
 # Run the default command
