@@ -27,6 +27,13 @@ echo "Setting correct permissions..."
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache || true
 
+# Ensure the public directory is accessible
+# chown -R www-data:www-data /var/www/public || true
+# chmod -R 755 /var/www/public || true
+
+chown -R www-data:www-data /var/www/storage/app/public || true
+chmod -R 775 /var/www/storage/app/public || true
+
 if grep -qE '^DB_CONNECTION=sqlite' /var/www/.env 2>/dev/null; then
   touch /var/www/database/database.sqlite
   chown www-data:www-data /var/www/database/database.sqlite
@@ -48,6 +55,13 @@ php artisan config:cache
 php artisan route:cache
 
 php artisan storage:link
+
+# Fix storage symlink permissions
+if [ -L "/var/www/public/storage" ]; then
+    echo "Fixing storage symlink permissions..."
+    chown -h www-data:www-data /var/www/public/storage || true
+    chmod -R 755 /var/www/public/storage || true
+fi
 
 # Run the default command
 exec "$@"

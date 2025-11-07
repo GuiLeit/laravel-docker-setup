@@ -12,7 +12,7 @@ services:
       - laravel-development
     depends_on:
       php-fpm:
-        condition: service_started 
+        condition: service_healthy
 
   php-fpm:
     build:
@@ -31,9 +31,9 @@ services:
       - laravel-development
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: ["php-fpm"]
-    depends_on:
-      postgres:
-        condition: service_started 
+    # depends_on:
+    #   postgres:
+    #     condition: service_started 
 
   workspace:
     build:
@@ -59,26 +59,26 @@ services:
     networks:
       - laravel-development
 
-  postgres:
-    image: postgres:16
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    environment:
-      - POSTGRES_DB=app
-      - POSTGRES_USER=laravel
-      - POSTGRES_PASSWORD=secret
-    volumes:
-      - postgres-data-development:/var/lib/postgresql/data
-    networks:
-      - laravel-development
+  # postgres:
+  #   image: postgres:16
+  #   ports:
+  #     - "${POSTGRES_PORT:-5432}:5432"
+  #   environment:
+  #     - POSTGRES_DB=app
+  #     - POSTGRES_USER=laravel
+  #     - POSTGRES_PASSWORD=secret
+  #   volumes:
+  #     - postgres-data-development:/var/lib/postgresql/data
+  #   networks:
+  #     - laravel-development
 
-  redis:
-    image: redis:alpine
-    networks:
-      - laravel-development
+  # redis:
+  #   image: redis:alpine
+  #   networks:
+  #     - laravel-development
 
 networks:
   laravel-development:
 
 volumes:
-  postgres-data-development:
+  # postgres-data-development:

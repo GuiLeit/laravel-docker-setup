@@ -4,6 +4,9 @@ services:
       context: .
       dockerfile: ./docker/production/Dockerfile
     restart: unless-stopped
+    volumes:
+      # Mount storage volume to serve uploaded files
+      - laravel-storage:/var/www/storage/app/public
     networks:
       - laravel-production
     ports:
@@ -22,6 +25,8 @@ services:
       # Only mount .env file - everything else is baked into the image
       - ./.env:/var/www/.env
       - ./docker/production/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
+      # Mount storage volume for uploaded files
+      - laravel-storage:/var/www/storage/app/public
     env_file:
       - .env
     networks:
@@ -34,43 +39,44 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # depends_on:
+      # postgres:
+        # condition: service_healthy
 
-  postgres:
-    image: postgres:16
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
-    environment:
-      - POSTGRES_DB=${POSTGRES_DATABASE:-app}
-      - POSTGRES_USER=${POSTGRES_USERNAME:-laravel}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secret}
-    volumes:
-      - postgres-data-production:/var/lib/postgresql/data
-    networks:
-      - laravel-production
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME:-laravel} -d ${POSTGRES_DATABASE:-app}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # postgres:
+  #   image: postgres:16
+  #   restart: unless-stopped
+  #   ports:
+  #     - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+  #   environment:
+  #     - POSTGRES_DB=${POSTGRES_DATABASE:-app}
+  #     - POSTGRES_USER=${POSTGRES_USERNAME:-laravel}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secret}
+  #   volumes:
+  #     - postgres-data-production:/var/lib/postgresql/data
+  #   networks:
+  #     - laravel-production
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME:-laravel} -d ${POSTGRES_DATABASE:-app}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
-  redis:
-    image: redis:alpine
-    restart: unless-stopped 
-    networks:
-      - laravel-production
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+  # redis:
+  #   image: redis:alpine
+  #   restart: unless-stopped 
+  #   networks:
+  #     - laravel-production
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
 
 networks:
   laravel-production:
 
 volumes:
-  postgres-data-production:
+  # postgres-data-production:
   laravel-public-assets:
+  laravel-storage:
