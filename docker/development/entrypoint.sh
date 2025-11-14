@@ -40,6 +40,13 @@ if grep -qE '^DB_CONNECTION=sqlite' /var/www/.env 2>/dev/null; then
   chown www-data:www-data /var/www/database/database.sqlite
 fi
 
+# Install Composer dependencies
+# -----------------------------------------------------------
+# Ensure vendor directory exists before running Laravel commands
+# -----------------------------------------------------------
+echo "Installing Composer dependencies..."
+composer install --no-interaction --prefer-dist --optimize-autoloader
+
 php artisan key:generate --force
 
 # Run Laravel migrations
@@ -49,6 +56,16 @@ php artisan key:generate --force
 php artisan migrate --force
 
 php artisan storage:link
+
+# Install NPM dependencies and build frontend assets
+# -----------------------------------------------------------
+# Ensure node_modules exists and assets are built
+# -----------------------------------------------------------
+echo "Installing NPM dependencies..."
+npm install
+
+echo "Building frontend assets..."
+npm run build
 
 # Fix storage symlink permissions
 if [ -L "/var/www/public/storage" ]; then
