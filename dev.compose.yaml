@@ -31,6 +31,12 @@ services:
       - laravel-development
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: ["php-fpm"]
+    healthcheck:
+      test: ["CMD-SHELL", "pidof php-fpm"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_started 
